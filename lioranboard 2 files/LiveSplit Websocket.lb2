@@ -1,0 +1,219 @@
+[extension_name]
+LiveSplit Websocket
+[extension_info]
+LiveSplit Websocket
+[insert_external]
+<div>
+    <p>LiveSplit Websocket</p>
+    <p id="livesplit-con-status">You are not connected to LiveSplit</p>
+    <p id="livesplit-errors">Error Information</p>
+</div>
+<script src="./livesplit.js"></script>
+<!--
+ * @name: LiveSplit Websocket, @version: 1.0.0, @author: failstream#2571 (adjusted by Melonax#2978)
+ * -->
+[insert_command]
+LB.extCommand('Connect to Livesplit', 3355443, 52, {})
+LB.extCommand('Livesplit Command', 3355443, 52, {
+    command: ['command', 19, 'start', 1, ['alwayspausegametime', 'pause', 'pausegametime', 'reset', 'resume', 'skipsplit', 'split', 'startorsplit', 'starttimer', 'switchto gametime', 'switchto realtime', 'unpausegametime', 'unsplit']]
+})
+LB.extCommand('Livesplit Get', 3355443, 52, {
+    get: ['get', 19, 'splits', 1, ['bestpossibletime', 'comparison', 'comparisonsplittime', 'currentsplitname', 'currenttime', 'currenttimerphase', 'delta', 'finaltime', 'Game', 'lastsplittime', 'predictedtime', 'previoussplitname', 'splitindex', 'splits']],
+    data: ['data', 14, '', 1],
+    variable: ['variable', 14, '', 1],
+    buttonID: ['buttonID', 14, '', 1]
+})
+[insert_hook]
+  case "Livesplit Get": {
+    liveSplitGet(LioranBoardJSON.get, LioranBoardJSON.data, LioranBoardJSON.variable, LioranBoardJSON.buttonID)
+} break
+  case "Livesplit Command": {
+    liveSplitCommand(LioranBoardJSON.command)
+} break
+  case "Connect to Livesplit": {
+    liveSplitConnect()
+} break
+[insert_script]
+
+async function liveSplitConnect() {
+    if (livesplit._connected == false) {
+        livesplit.on('error', err => {
+            console.error(err);
+            document.getElementById('livesplit-errors').innerHTML = 'Livesplit attempted to connect but failed! Websocket server may not be on.';
+            LB.alert('Livesplit attempted to connect but failed! Is the websocket server on?');
+        });
+        try {
+            await livesplit.connect();
+            if (livesplit._connected) {
+                document.getElementById('livesplit-con-status').innerHTML = 'Connected to livesplit.';
+            }
+
+            livesplit.once('close', () => {
+                document.getElementById('livesplit-con-status').innerHTML = 'Disconnected from livesplit.';
+            });
+
+            let listenSetup = ['pause', 'reset', 'resume', 'skipSplit', 'split', 'start', 'switchComparison', 'undoAllPauses', 'undoSplit'];
+            listenSetup.forEach(element => {
+                liveSplitListen(element);
+            });
+
+        } catch (err) {
+            console.log(err);
+            document.getElementById('livesplit-con-status').innerHTML = 'Error connecting to livesplit';
+            LB.alert('Error connecting to livesplit');
+        }
+    } else {
+        document.getElementById('livesplit-errors').innerHTML = 'Attempting to connect when already connected!';
+        LB.alert('Attempting to connect livesplit when already connected');
+    }
+}
+
+function liveSplitCommand(command) {
+    if (livesplit._connected) {
+        try {
+            livesplit.send(command);
+        } catch (err) {
+            console.log(err);
+            document.getElementById('livesplit-errors').innerHTML = 'Fatal Error caused Command to fail';
+        }
+    } else {
+        document.getElementById('livesplit-errors').innerHTML = 'Attempted Command while not connected to livesplit';
+        LB.alert('Attempting Command while not connected to livesplit');
+    }
+}
+
+function liveSplitListen(listen) {
+    if (livesplit._connected) {
+        try {
+            const isValid = livesplit.listenFor(listen);
+            if (isValid) {
+                livesplit.on(listen, function (data) {
+					sendTrigger(listen);
+                });
+            }
+        } catch (err) {
+            console.log(err);
+            document.getElementById('livesplit-errors').innerHTML = 'Fatal Error caused Listen to fail';
+        }
+    } else {
+        document.getElementById('livesplit-errors').innerHTML = 'Attempted Listen while not connected to livesplit';
+        LB.alert('Attempting to Listen while not connected to livesplit');
+    }
+}
+
+//retrieve trigger pulls & send trigger
+async function sendTrigger(trigger) {
+	let obj = {};
+	
+	//get trigger pull info
+	let pulls = ['splits','splitindex','Game', 'bestpossibletime', 'comparison'];
+	for (var i = 0; i < pulls.length; i++) {
+		let result = await getStuff(pulls[i], '');
+		obj[pulls[i]] = result;
+	}
+	
+	//update index so it can be used more easily in arrays
+	obj.splitindex -= 1;
+		
+	//get delta for any split
+	let currenttimerphase = await getStuff('currenttimerphase', '');
+	if (currenttimerphase == "Ended"){
+		obj.delta = obj.splits[obj.splitindex].splitTime - obj.splits[obj.splitindex].comparison;
+		
+		//trigger on pb
+		if (trigger == "split"){
+			if (obj.splits[obj.splitindex].splitTime < obj.splits[obj.splitindex].personalBestSplitTime){
+				LB.triggerExt('livesplit pb', obj);
+			}
+		}
+		
+	}else{
+		obj.delta = await getStuff('delta', '');
+	}
+	
+	//trigger pulls for ahead/behind
+	if (obj.delta < 0){
+		obj.ahead = true
+	}else if (obj.delta > 0){
+		obj.ahead = false
+	}
+	
+	//first split trigger pulls for best segment & gained/lost
+	if (obj.splitindex == 0){
+		if (obj.splits[obj.splitindex].splitTime < obj.splits[obj.splitindex].bestSegmentTime){
+			obj.gold = true
+		}else{
+			obj.gold = false
+		}
+		
+		if (obj.delta < 0){
+			obj.gained = true
+		}else if (obj.delta > 0){
+			obj.gained = false
+		}
+	
+	//further splits trigger pulls for best segment & gained/lost
+	} else if (obj.splitindex > 0){
+		
+		// don't bother if previous split was skipped in this run or comparison bc thats annoying :)
+		if ("splitTime" in obj.splits[obj.splitindex-1] && "comparison" in obj.splits[obj.splitindex-1]){
+			if ((obj.splits[obj.splitindex].splitTime - obj.splits[obj.splitindex-1].splitTime) < obj.splits[obj.splitindex].bestSegmentTime){
+				obj.gold = true
+			}else{
+				obj.gold = false
+			}
+			
+			let olddelta = obj.splits[obj.splitindex-1].splitTime - obj.splits[obj.splitindex-1].comparison;
+			if (obj.delta < olddelta){
+				obj.gained = true
+			}else if (obj.delta > olddelta){
+				obj.gained = false
+			}
+		}
+	}
+	
+	//send trigger if gold
+	if (trigger == "split"){
+		if (obj.gold){
+			LB.triggerExt('livesplit gold', obj);
+		}
+	}
+		
+	// send regular trigger
+	let triggerName = 'livesplit ';
+    triggerName += trigger;
+
+	LB.triggerExt(triggerName, obj);
+}
+
+// adjusted so both trigger pull & get command can use this function
+// splits and game get events require special handling
+async function getStuff(get, data) {
+    try {
+        let getStr;
+        if (data == '') {
+            getStr = 'get' + get;
+        } else {
+            getStr = 'get' + get + ' ' + data;
+        }
+        let returnedData = await livesplit.getData(getStr);
+        return returnedData;
+    } catch (err) {
+        console.log(err);
+        document.getElementById('livesplit-errors').innerHTML = 'Fatal Error caused Get to fail';
+		return 0;
+    }
+}
+
+// splits and game get events require special handling
+async function liveSplitGet(get, data, variable, buttonID) {
+    if (livesplit._connected) {
+        let result = await getStuff(get, data);
+        LB.setVariable(variable, result, buttonID);
+    } else {
+        document.getElementById('livesplit-errors').innerHTML = 'Attempted Get while not connected to livesplit';
+        LB.alert('Attempting a Get while not connected to livesplit');
+    }
+}
+
+[insert_over]
