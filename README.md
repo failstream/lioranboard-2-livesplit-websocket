@@ -8,7 +8,7 @@ This is an extension for Lioranboard 2 that adds the ability to control livespli
   3) Put livesplit.js into the same folder where your transmitter.html is located. This should be in the transmitter folder where you installed LioranBoard 2
   4) Open LioranBoard 2 and install the extension normally.
 
-Once installed there will be a new board in LioranBoard that has everything you need to test the functionality and get started.
+Once installed there will be a new deck in LioranBoard that has everything you need to test the functionality and get started.
 
 # Usage:
 
