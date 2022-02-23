@@ -3,9 +3,10 @@
 This is an extension for Lioranboard 2 that adds the ability to control livesplit, as well as get data or receive events using the LiveSplitWebsocket extension here: https://github.com/Xenira/LiveSplit-Websocket The livesplit Websocket there must be installed for this to work at all, so do that first!
 
 # Install:
-  1) Install the livesplit websocket from here: https://github.com/Xenira/LiveSplit-Websocket
-  2) Put livesplit.js into the same folder where your transmitter.html is located. This should be in the transmitter folder where you installed LioranBoard 2
-  3) Open LioranBoard 2 and install the extension normally.
+  1) Follow the instructions to download and install livesplit websocket from here: https://github.com/Xenira/LiveSplit-Websocket
+  2) Download the release version of lioranboard-2-livesplit-websocket here: https://github.com/failstream/lioranboard-2-livesplit-websocket/releases/tag/v1.0.1
+  3) Put livesplit.js into the same folder where your transmitter.html is located. This should be in the transmitter folder where you installed LioranBoard 2
+  4) Open LioranBoard 2 and install the extension normally.
 
 Once installed there will be a new board in LioranBoard that has everything you need to test the functionality and get started.
 
