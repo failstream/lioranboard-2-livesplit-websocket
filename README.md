@@ -61,7 +61,7 @@ This extension adds three new commands and several triggers to LioranBoard 2 und
           `gained`              - returns 1 if you gained time in that split, 0 if you lost time
           `gold`                - returns 1 if the segment was your best ever, 0 if not
           
- # Troublshooting:
+ # Troubleshooting:
 
   * Websocket won't connect.
     - The websocket server in livesplit may not be on. This must be done manually each time you start livesplit or change layouts. Start the server by rightclicking on livesplit > control > Start Server (WS). After you do this make sure LioranBoard attempts to connect again with the `Connect to Livesplit` command
